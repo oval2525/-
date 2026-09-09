@@ -1,129 +1,162 @@
-import calendar
-from datetime import datetime
-import requests
 import streamlit as st
+import requests
+import datetime
+import calendar
+import re
 
-# 페이지 설정
-st.set_page_config(page_title="우리 학교 한 달 급식 달력", layout="wide")
+st.set_page_config(page_title="월간 학교 급식 달력", page_icon="\U0001f4c5", layout="wide")
+st.title("\U0001f4c5 우리 학교 월간 급식 달력")
+st.caption("선택한 월의 급식 메뉴를 주간 달력 형태로 한눈에 확인합니다.")
 
-st.title("🍱 우리 학교 한 달 급식 달력")
-st.caption("나이스(NEIS) 교육청 Open API를 활용한 월별 급식 조회 서비스입니다.")
+ALLERGY_MAP = {
+    1: "난류", 2: "우유", 3: "메밀", 4: "땅콩", 5: "대두",
+    6: "밀", 7: "고등어", 8: "게", 9: "새우", 10: "돼지고기",
+    11: "복숭아", 12: "토마토", 13: "아황산류", 14: "호두", 15: "닭고기",
+    16: "쇠고기", 17: "오징어", 18: "조개류(굴/전복/홍합 포함)", 19: "잣",
+}
 
-# 1. 학교 검색 및 설정 사이드바
-st.sidebar.header("🔍 학교 검색")
-school_name = st.sidebar.text_input("학교 이름을 입력하세요", value="서울고등학교")
+def replace_allergy_codes(dish_text, convert_to_text=True):
+    """메뉴명 뒤의 알레르기 번호를 감지하여 한글 식재료명으로 치환합니다."""
+    if not convert_to_text or not dish_text:
+        return dish_text
 
-# 연도 및 월 선택
-today = datetime.now()
-selected_year = st.sidebar.number_input(
-    "연도", min_value=2020, max_value=2030, value=today.year
+    def convert_match(match):
+        raw = match.group(0)
+        nums = re.findall(r"\d+", raw)
+        allergens = [ALLERGY_MAP[int(n)] for n in nums if int(n) in ALLERGY_MAP]
+        if allergens:
+            return f" :orange[[{', '.join(allergens)}]]"
+        return raw
+
+    pattern = r"\(?(\d+\.)+\)?"
+    return re.sub(pattern, convert_match, dish_text)
+
+st.sidebar.header("\u2699\ufe0f 학교 정보 설정")
+office_code = st.sidebar.text_input("시도교육청코드", value="T10", help="기본값: 제주특별자치도교육청(T10)")
+school_code = st.sidebar.text_input("표준학교코드", value="9290088", help="기본값: 제주중앙고등학교(9290088)")
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("\U0001f37d\ufe0f 알레르기 표시 설정")
+show_allergen_names = st.sidebar.toggle(
+    "알레르기 식품명으로 변환", value=True,
+    help="체크 시 숫자(예: 1. 5.) 대신 [난류, 대두] 형태로 변환하여 표시합니다.",
 )
-selected_month = st.sidebar.selectbox(
-    "월", list(range(1, 13)), index=today.month - 1
-)
 
+with st.sidebar.expander("\U0001f4d6 나이스 알레르기 번호 안내표"):
+    table_md = "\n".join([f"- **{k}번**: {v}" for k, v in ALLERGY_MAP.items()])
+    st.markdown(table_md)
 
-# 나이스 API: 학교 코드 검색 함수
-@st.cache_data(ttl=3600)
-def search_school(name):
-    url = "https://open.neis.go.kr/hub/schoolInfo"
-    params = {"Type": "json", "pIndex": 1, "pSize": 10, "SCHUL_NM": name}
-    try:
-        res = requests.get(url, params=params).json()
-        if "schoolInfo" in res:
-            return res["schoolInfo"][1]["row"]
-        return []
-    except Exception:
-        return []
+today = datetime.date.today()
+col_y, col_m, col_filter = st.columns([1, 1, 2])
+with col_y:
+    year = st.selectbox("연도 선택", options=list(range(today.year - 1, today.year + 2)), index=1)
+with col_m:
+    month = st.selectbox("월 선택", options=list(range(1, 13)), index=today.month - 1)
+with col_filter:
+    meal_filter = st.radio(
+        "급식 종류 선택", options=["전체 보기", "중식만 보기", "석식만 보기"], index=0, horizontal=True,
+    )
 
+def fetch_monthly_meals(key, ofcdc_code, schul_code, yr, mo):
+    """선택한 월의 1일부터 말일까지의 급식을 조회합니다."""
+    _, last_day = calendar.monthrange(yr, mo)
+    from_ymd = f"{yr}{mo:02d}01"
+    to_ymd = f"{yr}{mo:02d}{last_day:02d}"
 
-# 나이스 API: 월별 급식 정보 조회 함수
-@st.cache_data(ttl=3600)
-def get_monthly_diet(atpt_code, sd_code, year, month):
     url = "https://open.neis.go.kr/hub/mealServiceDietInfo"
-    # YYYYMM 형식
-    ym = f"{year}{month:02d}"
     params = {
-        "Type": "json",
-        "pIndex": 1,
-        "pSize": 100,
-        "ATPT_OFCDC_SC_CODE": atpt_code,
-        "SD_SCHUL_CODE": sd_code,
-        "MLSV_YMD": ym,
+        "KEY": key, "Type": "json", "pIndex": 1, "pSize": 100,
+        "ATPT_OFCDC_SC_CODE": ofcdc_code, "SD_SCHUL_CODE": schul_code,
+        "MLSV_FROM_YMD": from_ymd, "MLSV_TO_YMD": to_ymd,
     }
-    try:
-        res = requests.get(url, params=params).json()
-        diet_data = {}
-        if "mealServiceDietInfo" in res:
-            rows = res["mealServiceDietInfo"][1]["row"]
-            for row in rows:
-                day = int(row["MLSV_YMD"][-2:])
-                # 알레르기 정보 숫자 및 원산지 등 정리, HTML 태그(<br/>) 변환
-                dish_text = row["DDISH_NM"].replace("<br/>", "\n")
-                # 숫자(알레르기 요인) 제거 원할 경우 정규식 추가 가능
-                diet_data[day] = dish_text
-        return diet_data
-    except Exception:
-        return {}
+    response = requests.get(url, params=params, timeout=7)
+    return response.json()
 
+if "NEIS_KEY" not in st.secrets:
+    st.error("\u26a0\ufe0f Streamlit Secrets에 `NEIS_KEY`가 설정되어 있지 않습니다.")
+    st.stop()
 
-# 학교 검색 수행
-schools = search_school(school_name)
+neis_key = st.secrets["NEIS_KEY"]
 
-if not schools:
-    st.warning("학교를 찾을 수 없습니다. 정확한 학교명을 입력해 주세요.")
-else:
-    # 검색된 학교가 여러 개일 경우 선택
-    school_options = {
-        f"{s['SCHUL_NM']} ({s['LCTN_SC_NM']})": s for s in schools
-    }
-    selected_school_label = st.sidebar.selectbox(
-        "학교 선택", list(school_options.keys())
-    )
-    selected_school = school_options[selected_school_label]
+try:
+    with st.spinner(f"{year}년 {month}월 급식 정보를 불러오는 중..."):
+        res_data = fetch_monthly_meals(neis_key, office_code, school_code, year, month)
 
-    atpt_code = selected_school["ATPT_OFCDC_SC_CODE"]
-    sd_code = selected_school["SD_SCHUL_CODE"]
+    meal_dict = {}
+    if "mealServiceDietInfo" in res_data:
+        rows = res_data["mealServiceDietInfo"][1]["row"]
+        for row in rows:
+            ymd = row.get("MLSV_YMD")
+            meal_type = row.get("MMEAL_SC_NM", "급식")
+            dish = row.get("DDISH_NM", "")
 
-    st.subheader(
-        f"📅 {selected_school['SCHUL_NM']} - {selected_year}년 {selected_month}월 급식표"
-    )
+            formatted_dish = replace_allergy_codes(dish, convert_to_text=show_allergen_names)
+            dish_lines = [d.strip() for d in formatted_dish.replace("<br/>", "\n").split("\n") if d.strip()]
 
-    # 급식 데이터 가져오기
-    diet_dict = get_monthly_diet(
-        atpt_code, sd_code, selected_year, selected_month
-    )
+            meal_dict.setdefault(ymd, {})[meal_type] = dish_lines
 
-    # 달력 데이터 생성 (calendar 모듈 활용)
-    cal = calendar.Calendar(firstweekday=6)  # 일요일부터 시작
-    month_days = cal.monthdayscalendar(selected_year, selected_month)
-
-    # 요일 헤더
-    days_of_week = ["일", "월", "화", "수", "목", "금", "토"]
-    cols = st.columns(7)
-    for idx, day_name in enumerate(days_of_week):
-        cols[idx].markdown(f"**{day_name}**", help=None)
+    month_cal = calendar.monthcalendar(year, month)
+    weekdays_kr = ["월", "화", "수", "목", "금"]
 
     st.markdown("---")
 
-    # 달력 출력
-    for week in month_days:
-        week_cols = st.columns(7)
-        for idx, day in enumerate(week):
-            with week_cols[idx]:
-                if day != 0:
-                    # 날짜 표시
-                    st.markdown(f"### {day}")
+    for week in month_cal:
+        cols = st.columns(5)
+        has_school_day = False
 
-                    # 해당 날짜에 급식이 있는 경우 출력
-                    if day in diet_dict:
-                        st.info(diet_dict[day])
-                    else:
-                        # 주말이거나 급식이 없는 날
-                        if idx in [0, 6]:  # 토요일, 일요일
-                            st.caption("주말")
-                        else:
-                            st.caption("급식 없음")
+        for i in range(5):
+            day = week[i]
+            with cols[i]:
+                if day == 0:
+                    st.empty()
                 else:
-                    # 이번 달에 해당하지 않는 칸
-                    st.write("")
+                    has_school_day = True
+                    ymd_str = f"{year}{month:02d}{day:02d}"
+                    day_meals = meal_dict.get(ymd_str, {})
+                    is_today = (year == today.year and month == today.month and day == today.day)
+
+                    with st.container(border=True):
+                        if is_today:
+                            st.markdown(f"**{month}월 {day}일 ({weekdays_kr[i]})** :orange-background[**TODAY**]")
+                        else:
+                            st.markdown(f"**{month}월 {day}일 ({weekdays_kr[i]})**")
+
+                        st.divider()
+
+                        if not day_meals:
+                            st.caption("급식 없음 (휴업/방학)")
+                        else:
+                            displayed_count = 0
+
+                            if meal_filter in ["전체 보기", "중식만 보기"] and "중식" in day_meals:
+                                displayed_count += 1
+                                st.markdown(":blue[**\U0001f963 중식**]")
+                                for dish in day_meals["중식"]:
+                                    st.markdown(f"<span style='font-size:0.85rem;'>\u2022 {dish}</span>", unsafe_allow_html=True)
+
+                            if meal_filter in ["전체 보기", "석식만 보기"] and "석식" in day_meals:
+                                displayed_count += 1
+                                if meal_filter == "전체 보기" and "중식" in day_meals:
+                                    st.write("")
+                                st.markdown(":red[**\U0001f319 석식**]")
+                                for dish in day_meals["석식"]:
+                                    st.markdown(f"<span style='font-size:0.85rem;'>\u2022 {dish}</span>", unsafe_allow_html=True)
+
+                            if meal_filter == "전체 보기":
+                                for m_type, dishes in day_meals.items():
+                                    if m_type not in ["중식", "석식"]:
+                                        displayed_count += 1
+                                        st.markdown(f":green[**\U0001f374 {m_type}**]")
+                                        for dish in dishes:
+                                            st.markdown(f"<span style='font-size:0.85rem;'>\u2022 {dish}</span>", unsafe_allow_html=True)
+
+                            if displayed_count == 0:
+                                st.caption("해당 식단 없음")
+
+        if has_school_day:
+            st.write("")
+
+except requests.exceptions.RequestException as e:
+    st.error(f"\u26a0\ufe0f 나이스 API 통신 오류: 네트워크 상태를 확인해 주세요. ({e})")
+except Exception as e:
+    st.error(f"\u26a0\ufe0f 화면 구성 중 오류가 발생했습니다: {e}")
