@@ -46,7 +46,7 @@ ALLERGY_EFFECTS = {
     7: "히스타민 식중독 유사 증상, 두드러기, 기도 수축",
     8: "급성 알레르기성 비염, 피부 부종, 쇼크",
     9: "구강 알레르기 증후군, 두드러기, 아나필락시스",
-    10: "소화기 장애, 피부 가려움증, 蕁麻疹(두드러기)",
+    10: "소화기 장애, 피부 가려움증, 두드러기",
     11: "구강 가려움증(구강알레르기증후군), 후두 부종",
     12: "접촉성 피부염, 구강 자극, 두드러기",
     13: "천식 발작, 천명음(숨소리 거칠어짐), 호흡곤란",
@@ -63,113 +63,20 @@ HIGH_RISK_ALLERGENS = {1, 3, 4, 7, 8, 9, 10, 11, 14, 15, 16, 17, 18, 19}
 
 # 음식 메뉴 키워드별 이모지 매핑
 FOOD_EMOJI_MAP = {
-    # 밥류
-    "밥": "🍚",
-    "볶음밥": "🍳",
-    "덮밥": "🍲",
-    "비빔밥": "🥗",
-    "죽": "🥣",
-    "리조또": "🍲",
-    "카레": "🍛",
-    "하이라이스": "🍛",
-    # 국 / 찌개 / 탕 / 수프
-    "국": "🍲",
-    "찌개": "🥘",
-    "탕": "🍲",
-    "스프": "🥣",
-    "수프": "🥣",
-    "수제비": "🥣",
-    # 육류 / 고기 요리
-    "불고기": "🥩",
-    "갈비": "🍖",
-    "스테이크": "🥩",
-    "삼겹": "🥓",
-    "보쌈": "🥩",
-    "족발": "🍖",
-    "제육": "🥩",
-    "닭": "🍗",
-    "치킨": "🍗",
-    "오리": "🦆",
-    "너겟": "🍗",
-    "장조림": "🥩",
-    # 튀김 / 가스 / 전
-    "돈가스": "🥩",
-    "돈까스": "🥩",
-    "까스": "🍤",
-    "가스": "🍤",
-    "튀김": "🍤",
-    "탕수육": "🥢",
-    "전": "🥞",
-    "부침": "🥞",
-    "크로켓": "🧆",
-    "고로케": "🧆",
-    # 면류 / 이탈리안
-    "국수": "🍜",
-    "우동": "🍜",
-    "라면": "🍜",
-    "짬뽕": "🍜",
-    "짜장": "🍜",
-    "파스타": "🍝",
-    "스파게티": "🍝",
-    "잡채": "🥢",
-    # 해산물
-    "생선": "🐟",
-    "구이": "🐟",
-    "조림": "🐟",
-    "새우": "🦐",
-    "오징어": "🦑",
-    "낙지": "🐙",
-    "문어": "🐙",
-    "게": "🦀",
-    "조개": "🦪",
-    # 분식 / 서양식 / 기타
-    "떡볶이": "🍢",
-    "순대": "🍢",
-    "만두": "🥟",
-    "피자": "🍕",
-    "버거": "🍔",
-    "샌드위치": "🥪",
-    "토스트": "🍞",
-    # 반찬 / 샐러드 / 김치
-    "샐러드": "🥗",
-    "무침": "🥗",
-    "나물": "🌿",
-    "김치": "🥬",
-    "깍두기": "🥬",
-    "겉절이": "🥬",
-    "단무지": "🟡",
-    "피클": "🥒",
-    "장아찌": "🧄",
-    # 디저트 / 음료 / 과일
-    "우유": "🥛",
-    "요거트": "🍦",
-    "요구르트": "🧃",
-    "주스": "🧃",
-    "즙": "🧃",
-    "에이드": "🍹",
-    "차": "🍵",
-    "빵": "🍞",
-    "케이크": "🍰",
-    "파이": "🥧",
-    "쿠키": "🍪",
-    "떡": "🍡",
-    "푸딩": "🍮",
-    "아이스크림": "🍨",
-    "사과": "🍎",
-    "바나나": "🍌",
-    "포도": "🍇",
-    "귤": "🍊",
-    "오렌지": "🍊",
-    "수박": "🍉",
-    "딸기": "🍓",
-    "파인애플": "🍍",
-    "토마토": "🍅",
-    "멜론": "🍈",
+    "밥": "🍚", "볶음밥": "🍳", "덮밥": "🍲", "비빔밥": "🥗", "죽": "🥣", "리조또": "🍲", "카레": "🍛", "하이라이스": "🍛",
+    "국": "🍲", "찌개": "🥘", "탕": "🍲", "스프": "🥣", "수프": "🥣", "수제비": "🥣",
+    "불고기": "🥩", "갈비": "🍖", "스테이크": "🥩", "삼겹": "🥓", "보쌈": "🥩", "족발": "🍖", "제육": "🥩", "닭": "🍗", "치킨": "🍗", "오리": "🦆", "너겟": "🍗", "장조림": "🥩",
+    "돈가스": "🥩", "돈까스": "🥩", "까스": "🍤", "가스": "🍤", "튀김": "🍤", "탕수육": "🥢", "전": "🥞", "부침": "🥞", "크로켓": "🧆", "고로케": "🧆",
+    "국수": "🍜", "우동": "🍜", "라면": "🍜", "짬뽕": "🍜", "짜장": "🍜", "파스타": "🍝", "스파게티": "🍝", "잡채": "🥢",
+    "생선": "🐟", "구이": "🐟", "조림": "🐟", "새우": "🦐", "오징어": "🦑", "낙지": "🐙", "문어": "🐙", "게": "🦀", "조개": "🦪",
+    "떡볶이": "🍢", "순대": "🍢", "만두": "🥟", "피자": "🍕", "버거": "🍔", "샌드위치": "🥪", "토스트": "🍞",
+    "샐러드": "🥗", "무침": "🥗", "나물": "🌿", "김치": "🥬", "깍두기": "🥬", "겉절이": "🥬", "단무지": "🟡", "피클": "🥒", "장아찌": "🧄",
+    "우유": "🥛", "요거트": "🍦", "요구르트": "🧃", "주스": "🧃", "즙": "🧃", "에이드": "🍹", "차": "🍵", "빵": "🍞", "케이크": "🍰", "파이": "🥧", "쿠키": "🍪", "떡": "🍡", "푸딩": "🍮", "아이스크림": "🍨",
+    "사과": "🍎", "바나나": "🍌", "포도": "🍇", "귤": "🍊", "오렌지": "🍊", "수박": "🍉", "딸기": "🍓", "파인애플": "🍍", "토마토": "🍅", "멜론": "🍈",
 }
 
 
 def get_food_emoji(dish_text):
-    """메뉴명을 분석하여 적절한 음식 이모지를 반환합니다."""
     clean_text = re.sub(r"\(?(\d+\.)+\)?", "", dish_text).strip()
     for keyword, emoji in FOOD_EMOJI_MAP.items():
         if keyword in clean_text:
@@ -178,7 +85,6 @@ def get_food_emoji(dish_text):
 
 
 def parse_and_format_dish(dish_text, convert_to_text=True):
-    """메뉴 텍스트 분석: 알레르기 번호 감지, 위험/경고 아이콘, 번호 변환 및 포함된 알레르기 번호 집합 반환."""
     if not dish_text:
         return "", "", set()
 
@@ -263,7 +169,6 @@ with col_filter:
 
 
 def fetch_monthly_meals(key, ofcdc_code, schul_code, yr, mo):
-    """선택한 월의 급식 정보 가져오기"""
     _, last_day = calendar.monthrange(yr, mo)
     from_ymd = f"{yr}{mo:02d}01"
     to_ymd = f"{yr}{mo:02d}{last_day:02d}"
@@ -281,6 +186,33 @@ def fetch_monthly_meals(key, ofcdc_code, schul_code, yr, mo):
     }
     response = requests.get(url, params=params, timeout=7)
     return response.json()
+
+
+def render_meal_item(m_type, title_icon, dishes_list):
+    """식단 항목 및 주의 질환 출력 함수"""
+    st.markdown(f"{title_icon}[**{m_type}**]")
+
+    meal_allergy_set = set()
+    for emoji, risk_icon, dish, a_nums in dishes_list:
+        st.markdown(
+            f"<span style='font-size:0.85rem;'>• {emoji} {risk_icon}{dish}</span>",
+            unsafe_allow_html=True,
+        )
+        meal_allergy_set.update(a_nums)
+
+    if show_effects_details and meal_allergy_set:
+        effects_list = [
+            ALLERGY_EFFECTS[num]
+            for num in meal_allergy_set
+            if num in ALLERGY_EFFECTS
+        ]
+        if effects_list:
+            summary_effects = ", ".join(
+                list(
+                    dict.fromkeys([eff.split(", ")[0] for eff in effects_list])
+                )
+            )[:3]
+            st.caption(f"🚨 **주의 질환/부작용**: {summary_effects} 등")
 
 
 if "NEIS_KEY" not in st.secrets:
@@ -363,54 +295,15 @@ try:
                         else:
                             displayed_count = 0
 
-                            # 급식 종류별 출력 함수
-                            def render_meal_section(m_type, title_color):
-                                nonlocal displayed_count
-                                displayed_count += 1
-                                st.markdown(f"{title_color}[**{m_type}**]")
-
-                                meal_allergy_set = set()
-                                for (
-                                    emoji,
-                                    risk_icon,
-                                    dish,
-                                    a_nums,
-                                ) in day_meals[m_type]:
-                                    st.markdown(
-                                        f"<span style='font-size:0.85rem;'>• {emoji} {risk_icon}{dish}</span>",
-                                        unsafe_allow_html=True,
-                                    )
-                                    meal_allergy_set.update(a_nums)
-
-                                # 식단별 주의 질환 요약 출력
-                                if show_effects_details and meal_allergy_set:
-                                    effects_list = [
-                                        ALLERGY_EFFECTS[num]
-                                        for num in meal_allergy_set
-                                        if num in ALLERGY_EFFECTS
-                                    ]
-                                    if effects_list:
-                                        # 유발 가능 질환 중 주요 항목 요약
-                                        summary_effects = ", ".join(
-                                            list(
-                                                dict.fromkeys(
-                                                    [
-                                                        eff.split(", ")[0]
-                                                        for eff in effects_list
-                                                    ]
-                                                )
-                                            )[:3]
-                                        )
-                                        st.caption(
-                                            f"🚨 **주의 질환/부작용**: {summary_effects} 등"
-                                        )
-
                             # 중식
                             if (
                                 meal_filter in ["전체 보기", "중식만 보기"]
                                 and "중식" in day_meals
                             ):
-                                render_meal_section("중식", ":blue[🥣 ]")
+                                displayed_count += 1
+                                render_meal_item(
+                                    "중식", ":blue[🥣 ]", day_meals["중식"]
+                                )
 
                             # 석식
                             if (
@@ -422,14 +315,18 @@ try:
                                     and "중식" in day_meals
                                 ):
                                     st.write("")
-                                render_meal_section("석식", ":red[🌙 ]")
+                                displayed_count += 1
+                                render_meal_item(
+                                    "석식", ":red[🌙 ]", day_meals["석식"]
+                                )
 
                             # 기타 식단
                             if meal_filter == "전체 보기":
-                                for m_type in day_meals:
+                                for m_type, dishes in day_meals.items():
                                     if m_type not in ["중식", "석식"]:
-                                        render_meal_section(
-                                            m_type, ":green[🍴 ]"
+                                        displayed_count += 1
+                                        render_meal_item(
+                                            m_type, ":green[🍴 ]", dishes
                                         )
 
                             if displayed_count == 0:
