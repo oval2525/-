@@ -12,7 +12,7 @@ st.caption(
     "선택한 월의 급식 메뉴를 주간 달력 형태로 한눈에 확인합니다."
 )
 
-# 알레르기 정보 매핑
+# 나이스 알레르기 정보 매핑
 ALLERGY_MAP = {
     1: "난류",
     2: "우유",
@@ -35,6 +35,9 @@ ALLERGY_MAP = {
     19: "잣",
 }
 
+# ☠️ 해골(고위험) 아이콘을 적용할 알레르기 번호 지정 (계란, 견과류, 갑각류, 육류, 어패류 등)
+HIGH_RISK_ALLERGENS = {1, 4, 7, 8, 9, 10, 11, 14, 15, 16, 17, 18}
+
 # 음식 메뉴 키워드별 이모지 매핑
 FOOD_EMOJI_MAP = {
     # 밥류
@@ -46,7 +49,7 @@ FOOD_EMOJI_MAP = {
     "리조또": "🍲",
     "카레": "🍛",
     "하이라이스": "🍛",
-    # 국 / 찌개 / 탕 / 스프
+    # 국 / 찌개 / 탕 / 수프
     "국": "🍲",
     "찌개": "🥘",
     "탕": "🍲",
@@ -99,7 +102,6 @@ FOOD_EMOJI_MAP = {
     # 분식 / 서양식 / 기타
     "떡볶이": "🍢",
     "순대": "🍢",
-    "튀김": "🍤",
     "만두": "🥟",
     "피자": "🍕",
     "버거": "🍔",
@@ -145,55 +147,54 @@ FOOD_EMOJI_MAP = {
 
 def get_food_emoji(dish_text):
     """메뉴명을 분석하여 적절한 음식 이모지를 반환합니다."""
-    # 알레르기 번호 제거 후 pure text에서 키워드 검색
     clean_text = re.sub(r"\(?(\d+\.)+\)?", "", dish_text).strip()
     for keyword, emoji in FOOD_EMOJI_MAP.items():
         if keyword in clean_text:
             return emoji
-    return "🍱"  # 매칭되는 키워드가 없을 때 기본 이모지
+    return "🍱"
 
 
-def replace_allergy_codes(
-    dish_text, convert_to_text=True, target_allergens=None
-):
-    """
-    메뉴명 뒤의 알레르기 번호를 감지하여 한글 식재료명으로 치환하고,
-    사용자가 주의 선택한 알레르기가 있는 경우 경고 이모지(⚠️)와 위험 여부(is_warning)를 반환합니다.
-    """
-    if target_allergens is None:
-        target_allergens = []
-
+def parse_and_format_dish(dish_text, convert_to_text=True):
+    """메뉴 텍스트 분석: 알레르기 번호 감지, 위험/경고 아이콘 붙이기, 번호 변환 수행."""
     if not dish_text:
-        return dish_text, False
+        return "", ""
 
-    is_warning = False
+    # 메뉴에 포함된 알레르기 번호 추출
+    allergy_matches = re.findall(r"\(?(\d+\.)+\)?", dish_text)
+    allergy_nums = set()
+    pattern = r"\(?(\d+\.)+\)?"
 
+    # 숫자 추출
+    for match in re.finditer(pattern, dish_text):
+        nums = re.findall(r"\d+", match.group(0))
+        for n in nums:
+            allergy_nums.add(int(n))
+
+    # 알레르기 위험 아이콘 결정
+    risk_icon = ""
+    if allergy_nums:
+        # 고위험 성분 포함 여부에 따라 해골(☠️) 또는 주의(⚠️) 아이콘 선택
+        if any(num in HIGH_RISK_ALLERGENS for num in allergy_nums):
+            risk_icon = "☠️ "
+        else:
+            risk_icon = "⚠️ "
+
+    # 알레르기 번호 텍스트 변환 (옵션 적용)
     def convert_match(match):
-        nonlocal is_warning
         raw = match.group(0)
-        nums = [int(n) for n in re.findall(r"\d+", raw)]
-
-        # 선택한 알레르기 번호와 일치하는 항목이 있는지 확인
-        if any(n in target_allergens for n in nums):
-            is_warning = True
-
-        if convert_to_text:
-            allergens = [
-                ALLERGY_MAP[n] for n in nums if n in ALLERGY_MAP
-            ]
-            if allergens:
-                # 주의 대상인 경우 빨간색 강조 표시
-                if is_warning:
-                    return f" :red[[{', '.join(allergens)}]]"
-                return f" :orange[[{', '.join(allergens)}]]"
+        nums = re.findall(r"\d+", raw)
+        allergens = [
+            ALLERGY_MAP[int(n)] for n in nums if int(n) in ALLERGY_MAP
+        ]
+        if allergens and convert_to_text:
+            return f" :orange[[{', '.join(allergens)}]]"
         return raw
 
-    pattern = r"\(?(\d+\.)+\)?"
-    converted_text = re.sub(pattern, convert_match, dish_text)
-
-    return converted_text, is_warning
+    formatted_text = re.sub(pattern, convert_match, dish_text)
+    return risk_icon, formatted_text
 
 
+# 사이드바 설정
 st.sidebar.header("⚙️ 학교 정보 설정")
 office_code = st.sidebar.text_input(
     "시도교육청코드", value="T10", help="기본값: 제주특별자치도교육청(T10)"
@@ -203,25 +204,20 @@ school_code = st.sidebar.text_input(
 )
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("🍽️ 알레르기 설정")
+st.sidebar.subheader("🍽️ 알레르기 표시 설정")
 show_allergen_names = st.sidebar.toggle(
     "알레르기 식품명으로 변환",
     value=True,
     help="체크 시 숫자(예: 1. 5.) 대신 [난류, 대두] 형태로 변환하여 표시합니다.",
 )
 
-# 🚨 사용자 주의 알레르기 선택 멀티셀렉트 박스
-selected_allergens = st.sidebar.multiselect(
-    "⚠️ 주의할 알레르기 선택",
-    options=list(ALLERGY_MAP.keys()),
-    format_func=lambda x: f"{x}. {ALLERGY_MAP[x]}",
-    help="선택한 알레르기 성분이 포함된 메뉴는 빨간색 글씨와 ⚠️ 위험 아이콘으로 표시됩니다.",
-)
-
 with st.sidebar.expander("📖 나이스 알레르기 번호 안내표"):
+    st.markdown("- **☠️ 표시**: 계란, 견과류, 육류, 어패류 등 고위험군")
+    st.markdown("- **⚠️ 표시**: 우유, 대두, 밀 등 기타 알레르기 성분\n")
     table_md = "\n".join([f"- **{k}번**: {v}" for k, v in ALLERGY_MAP.items()])
     st.markdown(table_md)
 
+# 메인 날짜/옵션 필터
 today = datetime.date.today()
 col_y, col_m, col_filter = st.columns([1, 1, 2])
 with col_y:
@@ -284,7 +280,6 @@ try:
             meal_type = row.get("MMEAL_SC_NM", "급식")
             dish = row.get("DDISH_NM", "")
 
-            # 원본 메뉴명에서 이모지 추출 후 알레르기 번호 변환 진행
             raw_lines = [
                 d.strip()
                 for d in dish.replace("<br/>", "\n").split("\n")
@@ -293,12 +288,10 @@ try:
             processed_dishes = []
             for raw_dish in raw_lines:
                 emoji = get_food_emoji(raw_dish)
-                formatted_dish, is_warning = replace_allergy_codes(
-                    raw_dish,
-                    convert_to_text=show_allergen_names,
-                    target_allergens=selected_allergens,
+                risk_icon, formatted_dish = parse_and_format_dish(
+                    raw_dish, convert_to_text=show_allergen_names
                 )
-                processed_dishes.append((emoji, formatted_dish, is_warning))
+                processed_dishes.append((emoji, risk_icon, formatted_dish))
 
             meal_dict.setdefault(ymd, {})[meal_type] = processed_dishes
 
@@ -307,6 +300,7 @@ try:
 
     st.markdown("---")
 
+    # 달력 렌더링 (월~금만 출력)
     for week in month_cal:
         cols = st.columns(5)
         has_school_day = False
@@ -344,31 +338,20 @@ try:
                         else:
                             displayed_count = 0
 
-                            # 공통 렌더링 함수
-                            def render_dishes(dishes):
-                                for emoji, dish, is_warning in dishes:
-                                    if is_warning:
-                                        # 빨간색 텍스트 + 위험 아이콘 ⚠️ 표시
-                                        st.markdown(
-                                            f"<span style='font-size:0.85rem; color:#FF4B4B; font-weight:bold;'>"
-                                            f"⚠️ {emoji} {dish}</span>",
-                                            unsafe_allow_html=True,
-                                        )
-                                    else:
-                                        st.markdown(
-                                            f"<span style='font-size:0.85rem;'>"
-                                            f"• {emoji} {dish}</span>",
-                                            unsafe_allow_html=True,
-                                        )
-
+                            # 중식
                             if (
                                 meal_filter in ["전체 보기", "중식만 보기"]
                                 and "중식" in day_meals
                             ):
                                 displayed_count += 1
                                 st.markdown(":blue[**🥣 중식**]")
-                                render_dishes(day_meals["중식"])
+                                for emoji, risk_icon, dish in day_meals["중식"]:
+                                    st.markdown(
+                                        f"<span style='font-size:0.85rem;'>• {emoji} {risk_icon}{dish}</span>",
+                                        unsafe_allow_html=True,
+                                    )
 
+                            # 석식
                             if (
                                 meal_filter in ["전체 보기", "석식만 보기"]
                                 and "석식" in day_meals
@@ -380,8 +363,13 @@ try:
                                 ):
                                     st.write("")
                                 st.markdown(":red[**🌙 석식**]")
-                                render_dishes(day_meals["석식"])
+                                for emoji, risk_icon, dish in day_meals["석식"]:
+                                    st.markdown(
+                                        f"<span style='font-size:0.85rem;'>• {emoji} {risk_icon}{dish}</span>",
+                                        unsafe_allow_html=True,
+                                    )
 
+                            # 기타 식단
                             if meal_filter == "전체 보기":
                                 for m_type, dishes in day_meals.items():
                                     if m_type not in ["중식", "석식"]:
@@ -389,7 +377,11 @@ try:
                                         st.markdown(
                                             f":green[**🍴 {m_type}**]"
                                         )
-                                        render_dishes(dishes)
+                                        for emoji, risk_icon, dish in dishes:
+                                            st.markdown(
+                                                f"<span style='font-size:0.85rem;'>• {emoji} {risk_icon}{dish}</span>",
+                                                unsafe_allow_html=True,
+                                            )
 
                             if displayed_count == 0:
                                 st.caption("해당 식단 없음")
