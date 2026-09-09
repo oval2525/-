@@ -153,23 +153,45 @@ def get_food_emoji(dish_text):
     return "🍱"  # 매칭되는 키워드가 없을 때 기본 이모지
 
 
-def replace_allergy_codes(dish_text, convert_to_text=True):
-    """메뉴명 뒤의 알레르기 번호를 감지하여 한글 식재료명으로 치환합니다."""
-    if not convert_to_text or not dish_text:
-        return dish_text
+def replace_allergy_codes(
+    dish_text, convert_to_text=True, target_allergens=None
+):
+    """
+    메뉴명 뒤의 알레르기 번호를 감지하여 한글 식재료명으로 치환하고,
+    사용자가 주의 선택한 알레르기가 있는 경우 경고 이모지(⚠️)와 위험 여부(is_warning)를 반환합니다.
+    """
+    if target_allergens is None:
+        target_allergens = []
+
+    if not dish_text:
+        return dish_text, False
+
+    is_warning = False
 
     def convert_match(match):
+        nonlocal is_warning
         raw = match.group(0)
-        nums = re.findall(r"\d+", raw)
-        allergens = [
-            ALLERGY_MAP[int(n)] for n in nums if int(n) in ALLERGY_MAP
-        ]
-        if allergens:
-            return f" :orange[[{', '.join(allergens)}]]"
+        nums = [int(n) for n in re.findall(r"\d+", raw)]
+
+        # 선택한 알레르기 번호와 일치하는 항목이 있는지 확인
+        if any(n in target_allergens for n in nums):
+            is_warning = True
+
+        if convert_to_text:
+            allergens = [
+                ALLERGY_MAP[n] for n in nums if n in ALLERGY_MAP
+            ]
+            if allergens:
+                # 주의 대상인 경우 빨간색 강조 표시
+                if is_warning:
+                    return f" :red[[{', '.join(allergens)}]]"
+                return f" :orange[[{', '.join(allergens)}]]"
         return raw
 
     pattern = r"\(?(\d+\.)+\)?"
-    return re.sub(pattern, convert_match, dish_text)
+    converted_text = re.sub(pattern, convert_match, dish_text)
+
+    return converted_text, is_warning
 
 
 st.sidebar.header("⚙️ 학교 정보 설정")
@@ -181,11 +203,19 @@ school_code = st.sidebar.text_input(
 )
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("🍽️ 알레르기 표시 설정")
+st.sidebar.subheader("🍽️ 알레르기 설정")
 show_allergen_names = st.sidebar.toggle(
     "알레르기 식품명으로 변환",
     value=True,
     help="체크 시 숫자(예: 1. 5.) 대신 [난류, 대두] 형태로 변환하여 표시합니다.",
+)
+
+# 🚨 사용자 주의 알레르기 선택 멀티셀렉트 박스
+selected_allergens = st.sidebar.multiselect(
+    "⚠️ 주의할 알레르기 선택",
+    options=list(ALLERGY_MAP.keys()),
+    format_func=lambda x: f"{x}. {ALLERGY_MAP[x]}",
+    help="선택한 알레르기 성분이 포함된 메뉴는 빨간색 글씨와 ⚠️ 위험 아이콘으로 표시됩니다.",
 )
 
 with st.sidebar.expander("📖 나이스 알레르기 번호 안내표"):
@@ -263,10 +293,12 @@ try:
             processed_dishes = []
             for raw_dish in raw_lines:
                 emoji = get_food_emoji(raw_dish)
-                formatted_dish = replace_allergy_codes(
-                    raw_dish, convert_to_text=show_allergen_names
+                formatted_dish, is_warning = replace_allergy_codes(
+                    raw_dish,
+                    convert_to_text=show_allergen_names,
+                    target_allergens=selected_allergens,
                 )
-                processed_dishes.append((emoji, formatted_dish))
+                processed_dishes.append((emoji, formatted_dish, is_warning))
 
             meal_dict.setdefault(ymd, {})[meal_type] = processed_dishes
 
@@ -312,17 +344,30 @@ try:
                         else:
                             displayed_count = 0
 
+                            # 공통 렌더링 함수
+                            def render_dishes(dishes):
+                                for emoji, dish, is_warning in dishes:
+                                    if is_warning:
+                                        # 빨간색 텍스트 + 위험 아이콘 ⚠️ 표시
+                                        st.markdown(
+                                            f"<span style='font-size:0.85rem; color:#FF4B4B; font-weight:bold;'>"
+                                            f"⚠️ {emoji} {dish}</span>",
+                                            unsafe_allow_html=True,
+                                        )
+                                    else:
+                                        st.markdown(
+                                            f"<span style='font-size:0.85rem;'>"
+                                            f"• {emoji} {dish}</span>",
+                                            unsafe_allow_html=True,
+                                        )
+
                             if (
                                 meal_filter in ["전체 보기", "중식만 보기"]
                                 and "중식" in day_meals
                             ):
                                 displayed_count += 1
                                 st.markdown(":blue[**🥣 중식**]")
-                                for emoji, dish in day_meals["중식"]:
-                                    st.markdown(
-                                        f"<span style='font-size:0.85rem;'>• {emoji} {dish}</span>",
-                                        unsafe_allow_html=True,
-                                    )
+                                render_dishes(day_meals["중식"])
 
                             if (
                                 meal_filter in ["전체 보기", "석식만 보기"]
@@ -335,11 +380,7 @@ try:
                                 ):
                                     st.write("")
                                 st.markdown(":red[**🌙 석식**]")
-                                for emoji, dish in day_meals["석식"]:
-                                    st.markdown(
-                                        f"<span style='font-size:0.85rem;'>• {emoji} {dish}</span>",
-                                        unsafe_allow_html=True,
-                                    )
+                                render_dishes(day_meals["석식"])
 
                             if meal_filter == "전체 보기":
                                 for m_type, dishes in day_meals.items():
@@ -348,11 +389,7 @@ try:
                                         st.markdown(
                                             f":green[**🍴 {m_type}**]"
                                         )
-                                        for emoji, dish in dishes:
-                                            st.markdown(
-                                                f"<span style='font-size:0.85rem;'>• {emoji} {dish}</span>",
-                                                unsafe_allow_html=True,
-                                            )
+                                        render_dishes(dishes)
 
                             if displayed_count == 0:
                                 st.caption("해당 식단 없음")
